@@ -278,8 +278,8 @@ but nothing is committed.
 
 ## Development
 
-The test suite mocks the COM layer, so it runs on any platform — no Windows
-and no SolidWorks licence required:
+The test suite mocks the COM layer, so no SolidWorks licence is required
+to run it:
 
 ```bash
 pip install -e ".[dev]"
@@ -287,12 +287,18 @@ ruff check src tests
 pytest -v
 ```
 
-On Windows that is the whole story. CI runs the same two commands on Linux,
-but installs the pure-Python dependencies directly rather than via
-`pip install -e .`, because `pywin32` has no Linux wheel.
+On Windows that is the whole story: all 54 tests run. CI runs the same two
+commands on Linux, installing the pure-Python dependencies directly rather
+than via `pip install -e .`, because `pywin32` has no Linux wheel.
 
-Tests that need CadQuery (`analyze_step_standalone`) skip themselves when it
-is not installed.
+Two groups skip themselves rather than fail when a dependency is absent:
+
+- the `connect()` / `disconnect()` tests patch `pythoncom` and
+  `win32com.client` by name, so they need pywin32 and run on Windows only;
+- `analyze_step_standalone` needs CadQuery.
+
+Everything else — the COM call contract, hole and bend extraction, unit
+conversion, feature traversal — runs everywhere.
 
 ## Logs
 

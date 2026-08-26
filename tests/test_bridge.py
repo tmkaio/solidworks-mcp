@@ -1,10 +1,16 @@
 """
 Tests for solidworks_bridge.py.
 
-These tests mock the COM layer so they run on any machine without
-SolidWorks installed.
+These tests mock the COM layer, so none of them need SolidWorks itself.
+
+Most need nothing but the standard library. The exceptions are the
+connect()/disconnect() tests: they patch pythoncom and win32com.client by
+name, which requires those modules to be importable, and pywin32 has no
+Linux wheel. Those carry @requires_pywin32 and skip elsewhere — see the
+Development section of the README.
 """
 
+import importlib.util
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -26,6 +32,11 @@ from solidworks_mcp.solidworks_bridge import (
     SolidWorksBridge,
 )
 from tests.com_doubles import feature
+
+requires_pywin32 = pytest.mark.skipif(
+    importlib.util.find_spec("pythoncom") is None,
+    reason="pywin32 is Windows-only; these tests patch pythoncom/win32com by name",
+)
 
 
 @pytest.fixture
@@ -50,6 +61,7 @@ def connected_bridge():
 # ---------------------------------------------------------------------------
 
 
+@requires_pywin32
 def test_connect_raises_when_solidworks_not_running():
     b = SolidWorksBridge()
     with (
@@ -61,6 +73,7 @@ def test_connect_raises_when_solidworks_not_running():
             b.connect()
 
 
+@requires_pywin32
 def test_connect_reuses_existing_instance():
     b = SolidWorksBridge()
     mock_app = MagicMock()
@@ -75,6 +88,7 @@ def test_connect_reuses_existing_instance():
     assert result["is_new_instance"] is False
 
 
+@requires_pywin32
 def test_connect_launches_new_instance_when_none_running():
     b = SolidWorksBridge()
     mock_app = MagicMock()
@@ -93,6 +107,7 @@ def test_is_connected_false_when_not_initialized():
     assert b.is_connected() is False
 
 
+@requires_pywin32
 def test_is_connected_false_after_disconnect(connected_bridge):
     b, mock_app = connected_bridge
     with patch("pythoncom.CoUninitialize"):
