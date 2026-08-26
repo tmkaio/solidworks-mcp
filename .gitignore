@@ -47,5 +47,5 @@ tests/output/
 .env.local
 config.local.json
 
-# Claude Code local settings
-.claude/settings.local.json
+# Local editor / tooling settings
+.claude/
