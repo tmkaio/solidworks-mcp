@@ -1,11 +1,15 @@
 # solidworks-mcp
 
+[![CI](https://github.com/tmkaio/solidworks-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/tmkaio/solidworks-mcp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+
 MCP server that connects **Claude Desktop** to **SolidWorks** via COM API,
 enabling automated analysis of sheet metal parts for the tooling and stamping industry.
 
 ## What it does
 
-A ferramenteiro (tooling engineer) can open Claude Desktop and say:
+A tooling engineer can open Claude Desktop and say:
 
 > "Open `bracket.step`, tell me the thickness, all hole diameters, number of bends,
 > and export the flat pattern as a DXF."
@@ -36,7 +40,7 @@ The COM API requires the full application — SolidWorks PDM or Viewer are not s
 
 ```bat
 REM 1. Clone the repository
-git clone https://github.com/yourusername/solidworks-mcp.git
+git clone https://github.com/tmkaio/solidworks-mcp.git
 cd solidworks-mcp
 
 REM 2. Create a virtual environment
@@ -205,24 +209,47 @@ Claude: [calls flatten_part, export_dxf, unflatten_part]
 | `get_component_info` | Mass, path, bbox for a named component |
 | `get_assembly_mass` | Total assembly mass and centre of mass |
 
-## Limitations (v0.1 PoC)
+## Limitations (v0.1)
 
-- Single-part analysis only (no assembly traversal)
-- No parametric feature editing
-- STEP files import as "dumb" solids — conversion required for bend analysis
-- No strip layout / progressive die design (planned for v0.2+)
+- **Assembly support is read-only.** Components, BOM, mates and mass can be
+  read; creating mates or inserting components is not supported.
+- **No parametric editing.** Features can be listed, suppressed and
+  unsuppressed, but dimensions cannot be driven.
+- **STEP files import as "dumb" solids.** `convert_to_sheet_metal` must run
+  before bend analysis will return anything.
+- **No strip layout / progressive die design.**
+- **Windows only**, and requires a licensed local SolidWorks install — the
+  COM API needs the full application. The one exception is
+  `analyze_step_standalone`, which runs anywhere via CadQuery.
 
 ## Roadmap
 
 | Version | Feature |
 |---|---|
 | v0.2 | Strip layout tools — station configuration |
-| v0.3 | Qdrant vector DB integration for similar-part lookup |
-| v0.4 | Auto-generate 2D drawing with GD&T annotations |
-| v0.5 | Force calculations (cut, bend, draw) |
-| v0.6 | Formability and undercut detection |
-| v0.7 | Nesting integration (Almacam / JETCAM) |
-| v1.0 | Continuous learning loop from approved quotes |
+| v0.3 | Force calculations (cut, bend, draw) |
+
+Beyond that: formability and undercut detection, GD&T annotation on
+generated drawings, and nesting integration are all plausible directions,
+but nothing is committed.
+
+## Development
+
+The test suite mocks the COM layer, so it runs on any platform — no Windows
+and no SolidWorks licence required:
+
+```bash
+pip install -e ".[dev]"
+ruff check src tests
+pytest -v
+```
+
+On Windows that is the whole story. CI runs the same two commands on Linux,
+but installs the pure-Python dependencies directly rather than via
+`pip install -e .`, because `pywin32` has no Linux wheel.
+
+Tests that need CadQuery (`analyze_step_standalone`) skip themselves when it
+is not installed.
 
 ## Logs
 
