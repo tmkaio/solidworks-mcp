@@ -4,7 +4,7 @@
 
 - **Windows 10 or 11** (64-bit)
 - **SolidWorks 2022 or newer** — installed, activated, and able to open a file
-- **Python 3.11 or 3.12** — from [python.org](https://www.python.org/downloads/). Install to a path **without spaces** (e.g. `C:\Python312`)
+- **Python 3.10, 3.11 or 3.12** — from [python.org](https://www.python.org/downloads/). Install to a path **without spaces** (e.g. `C:\Python312`)
 - **Claude Desktop** — latest version
 
 ---

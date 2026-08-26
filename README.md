@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tmkaio/solidworks-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/tmkaio/solidworks-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
 MCP server that connects **Claude Desktop** to **SolidWorks** via COM API,
 enabling automated analysis of sheet metal parts for the tooling and stamping industry.
@@ -29,7 +29,7 @@ Claude calls the MCP tools to:
 | Requirement | Version |
 |---|---|
 | Windows | 10 or 11 (64-bit) |
-| Python | 3.11 or 3.12 |
+| Python | 3.10, 3.11 or 3.12 |
 | SolidWorks | Standard 2022 or newer (must be installed and licensed) |
 | Claude Desktop | latest |
 
