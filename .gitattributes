@@ -1,0 +1,14 @@
+# Normalise line endings: LF in the repository, native in the working copy.
+* text=auto
+
+# Windows-only helpers stay CRLF so they run when checked out on Linux/macOS too.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# CAD payloads: keep byte-for-byte as authored.
+*.step -text
+*.stp  -text
+*.dxf  -text
+*.sldprt binary
+*.sldasm binary
+*.slddrw binary

@@ -1,0 +1,44 @@
+{
+  "_comment": "Merge the 'mcpServers.solidworks' entry into your Claude Desktop config.",
+  "_config_location": "%APPDATA%\\Claude\\claude_desktop_config.json",
+  "_instructions": [
+    "1. Replace C:\\\\path\\\\to\\\\solidworks-mcp with the absolute path to your clone.",
+    "2. Replace the python path with the path to your venv's python.exe.",
+    "3. Merge the mcpServers block into your existing claude_desktop_config.json.",
+    "4. Fully restart Claude Desktop.",
+    "5. Look for the hammer icon in the chat toolbar."
+  ],
+
+  "mcpServers": {
+    "solidworks": {
+      "command": "C:\\path\\to\\solidworks-mcp\\.venv\\Scripts\\python.exe",
+      "args": [
+        "-m",
+        "solidworks_mcp.server"
+      ],
+      "env": {
+        "PYTHONPATH": "C:\\path\\to\\solidworks-mcp\\src",
+        "LOG_LEVEL": "INFO",
+        "LOG_FILE": "C:\\path\\to\\solidworks-mcp\\logs\\server.log"
+      }
+    }
+  },
+
+  "_alternative_uv": {
+    "_note": "If you use uv instead of pip, use this configuration instead:",
+    "mcpServers": {
+      "solidworks": {
+        "command": "uv",
+        "args": [
+          "--directory",
+          "C:\\path\\to\\solidworks-mcp",
+          "run",
+          "solidworks-mcp"
+        ],
+        "env": {
+          "LOG_LEVEL": "INFO"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+.env
+.venv/
+venv/
+env/
+
+# Unit test / coverage
+.tox/
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# SolidWorks temporary / backup files
+~*.sld*
+*.sldprt.bak
+*.sldasm.bak
+*.slddrw.bak
+
+# Log files
+*.log
+logs/
+
+# Test outputs
+tests/output/
+
+# Sensitive local config
+.env.local
+config.local.json
+
+# Claude Code local settings
+.claude/settings.local.json

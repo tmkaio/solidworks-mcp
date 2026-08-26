@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # pywin32 is a Windows-only dependency, so the package cannot be
+      # installed with `pip install -e .` on the Linux runner. The test
+      # suite mocks the COM layer, so only the pure-Python deps are needed.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "mcp[cli]>=1.2.0,<2.0.0" pytest pytest-asyncio ruff
+
+      - name: Lint (ruff)
+        run: ruff check src tests
+
+      - name: Test (pytest)
+        run: pytest -v
+        env:
+          PYTHONPATH: src

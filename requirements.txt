@@ -1,0 +1,22 @@
+# SolidWorks MCP Server — pinned dependencies
+#
+# Install with:
+#   pip install -e .
+#
+# For CadQuery (standalone STEP analysis without SolidWorks):
+#   conda install -c cadquery cadquery
+#   OR: pip install cadquery  (see docs/INSTALL.md for Windows instructions)
+
+# Core MCP framework
+mcp[cli]>=1.2.0,<2.0.0
+
+# Windows COM interface for SolidWorks API
+pywin32>=306
+
+# Optional: CadQuery for analyze_step_standalone()
+# cadquery>=2.4.0
+
+# Development / testing
+pytest>=8.0
+pytest-asyncio>=0.23
+ruff>=0.4

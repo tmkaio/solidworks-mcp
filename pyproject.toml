@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "solidworks-mcp"
+version = "0.1.0"
+description = "MCP server connecting Claude Desktop to SolidWorks for sheet metal part analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["mcp", "solidworks", "sheet-metal", "cad", "claude"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Manufacturing",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "mcp[cli]>=1.2.0,<2.0.0",
+    "pywin32>=306",
+]
+
+[project.optional-dependencies]
+# CadQuery enables analyze_step_standalone() without SolidWorks
+# Install via: conda install -c cadquery cadquery
+cadquery = [
+    "cadquery>=2.4.0",
+]
+
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+solidworks-mcp = "solidworks_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/solidworks_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "tests/", "docs/", "README.md", "requirements.txt"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# server.py must configure logging before any import that could write to
+# stdout — the MCP stdio transport requires a clean stdout. The resulting
+# late imports are deliberate.
+"src/solidworks_mcp/server.py" = ["E402"]
