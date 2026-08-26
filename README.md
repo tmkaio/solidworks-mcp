@@ -24,6 +24,49 @@ Claude calls the MCP tools to:
 
 **Time saved:** 60–90 minutes of manual inspection → ~60 seconds.
 
+## Try it without SolidWorks
+
+Most of this project needs a licensed SolidWorks install, but
+`analyze_step_standalone` runs anywhere CadQuery does. Against the test
+fixture in this repo:
+
+```bash
+pip install -e .
+conda install -c cadquery cadquery   # see docs/INSTALL.md for the pip route
+python -c "
+from mcp.server.fastmcp import FastMCP
+from solidworks_mcp.solidworks_bridge import SolidWorksBridge
+from solidworks_mcp.tools.analysis import register
+import json
+mcp = FastMCP('demo'); register(mcp, SolidWorksBridge())
+fn = mcp._tool_manager._tools['analyze_step_standalone'].fn
+print(json.dumps(fn(file_path='tests/fixtures/sample_part.step'), indent=2))
+"
+```
+
+Actual output for `sample_part.step` — a 100 x 60 x 2 mm plate with four
+Ø6 mm through holes (abridged; the full result also carries `file_path`,
+the individual bounding-box bounds, and a units note):
+
+```json
+{
+  "file_size_kb": 33.48,
+  "volume_mm3": 11773.81,
+  "surface_area_mm2": 12564.6,
+  "bounding_box": {
+    "dimensions_mm": [100.0, 60.0, 2.0]
+  },
+  "center_of_mass_mm": { "x": 0.0, "y": 0.0, "z": 1.0 },
+  "face_count": 10,
+  "face_types": { "PLANE": 6, "CYLINDER": 4 },
+  "estimated_thickness_mm": 2.0,
+  "is_likely_sheet_metal": true
+}
+```
+
+The four holes show up as the four cylindrical faces, and thickness is
+inferred from the smallest bounding-box dimension.
+
 ## Prerequisites
 
 | Requirement | Version |
