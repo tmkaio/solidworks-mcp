@@ -25,6 +25,7 @@ from solidworks_mcp.solidworks_bridge import (
     M_TO_MM,
     SolidWorksBridge,
 )
+from tests.com_doubles import feature
 
 
 @pytest.fixture
@@ -204,21 +205,12 @@ def test_get_bounding_box_converts_units(connected_bridge):
 # ---------------------------------------------------------------------------
 
 
-def _feature(type_name, next_feature=None, name=None):
-    """Build a mock IFeature. Values are set as plain attributes: see the
-    note in test_get_mass_properties_raises_when_none."""
-    feat = MagicMock()
-    feat.GetTypeName2 = type_name
-    feat.GetNextFeature = next_feature
-    if name is not None:
-        feat.Name = name
-    return feat
 
 
 def test_find_sheet_metal_feature_found(connected_bridge):
     b, _ = connected_bridge
-    sm_feat = _feature("SheetMetal", name="Sheet-Metal1")
-    other_feat = _feature("Extrusion", next_feature=sm_feat)
+    sm_feat = feature("SheetMetal", name="Sheet-Metal1")
+    other_feat = feature("Extrusion", next_feature=sm_feat)
 
     mock_doc = MagicMock()
     mock_doc.FirstFeature = other_feat
@@ -230,7 +222,7 @@ def test_find_sheet_metal_feature_found(connected_bridge):
 def test_find_sheet_metal_feature_not_found(connected_bridge):
     b, _ = connected_bridge
     mock_doc = MagicMock()
-    mock_doc.FirstFeature = _feature("Extrusion")
+    mock_doc.FirstFeature = feature("Extrusion")
 
     found = b.find_sheet_metal_feature(mock_doc)
     assert found is None
@@ -238,9 +230,9 @@ def test_find_sheet_metal_feature_not_found(connected_bridge):
 
 def test_iter_features_walks_the_whole_chain(connected_bridge):
     b, _ = connected_bridge
-    third = _feature("Fillet")
-    second = _feature("Extrusion", next_feature=third)
-    first = _feature("RefPlane", next_feature=second)
+    third = feature("Fillet")
+    second = feature("Extrusion", next_feature=third)
+    first = feature("RefPlane", next_feature=second)
 
     mock_doc = MagicMock()
     mock_doc.FirstFeature = first

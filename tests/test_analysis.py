@@ -12,6 +12,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests.com_doubles import chain, feature, get_tool
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 SAMPLE_STEP = FIXTURES_DIR / "sample_part.step"
 
@@ -29,7 +31,7 @@ def test_analyze_step_standalone_file_not_found():
     bridge = SolidWorksBridge()
     register(mcp, bridge)
 
-    tool_fn = _get_tool(mcp, "analyze_step_standalone")
+    tool_fn = get_tool(mcp, "analyze_step_standalone")
     result = tool_fn(file_path="C:\\nonexistent\\phantom.step")
     assert "error" in result
     assert "not found" in result["error"].lower()
@@ -47,7 +49,7 @@ def test_analyze_step_standalone_real_file():
     bridge = SolidWorksBridge()
     register(mcp, bridge)
 
-    tool_fn = _get_tool(mcp, "analyze_step_standalone")
+    tool_fn = get_tool(mcp, "analyze_step_standalone")
     result = tool_fn(file_path=str(SAMPLE_STEP))
 
     assert "error" not in result, f"Unexpected error: {result.get('error')}"
@@ -70,7 +72,7 @@ def test_get_part_info_not_connected():
     bridge = SolidWorksBridge()
     register(mcp, bridge)
 
-    tool_fn = _get_tool(mcp, "get_part_info")
+    tool_fn = get_tool(mcp, "get_part_info")
     result = tool_fn()
     assert "error" in result
 
@@ -85,7 +87,7 @@ def test_get_bounding_box_not_connected():
     bridge = SolidWorksBridge()
     register(mcp, bridge)
 
-    tool_fn = _get_tool(mcp, "get_bounding_box")
+    tool_fn = get_tool(mcp, "get_bounding_box")
     result = tool_fn()
     assert "error" in result
 
@@ -105,54 +107,22 @@ def test_count_features_by_type_mocked():
     # attribute that is not a real method without invoking it.
     mock_doc.GetType = DOC_PART
 
-    features = [
-        _make_feature("Extrusion"),
-        _make_feature("Extrusion"),
-        _make_feature("HoleWizard5"),
-        _make_feature("SheetMetal"),
-        _make_feature("EdgeFlange"),
-    ]
-    for i, f in enumerate(features[:-1]):
-        f.GetNextFeature = features[i + 1]
-    features[-1].GetNextFeature = None
-    mock_doc.FirstFeature = features[0]
+    mock_doc.FirstFeature = chain(
+        feature("Extrusion"),
+        feature("Extrusion"),
+        feature("HoleWizard5"),
+        feature("SheetMetal"),
+        feature("EdgeFlange"),
+    )
 
     bridge._app = MagicMock()
     bridge._app.ActiveDoc = mock_doc
     bridge._connected = True
 
     register(mcp, bridge)
-    tool_fn = _get_tool(mcp, "count_features_by_type")
+    tool_fn = get_tool(mcp, "count_features_by_type")
     result = tool_fn()
 
     assert result["total_features"] == 5
     assert result["by_type"]["Extrusion"] == 2
     assert result["by_type"]["HoleWizard5"] == 1
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _get_tool(mcp_instance, name: str):
-    """Retrieve a registered tool function from a FastMCP instance by name."""
-    tools_dict = getattr(mcp_instance, "_tools", None)
-    if tools_dict and name in tools_dict:
-        fn = tools_dict[name]
-        return fn.fn if hasattr(fn, "fn") else fn
-
-    tool_manager = getattr(mcp_instance, "_tool_manager", None)
-    if tool_manager:
-        mgr_tools = getattr(tool_manager, "_tools", {})
-        if name in mgr_tools:
-            fn = mgr_tools[name]
-            return fn.fn if hasattr(fn, "fn") else fn
-
-    raise KeyError(f"Tool '{name}' not found in FastMCP instance")
-
-
-def _make_feature(type_name: str) -> MagicMock:
-    feat = MagicMock()
-    feat.GetTypeName2 = type_name
-    feat.Name = type_name + "1"
-    return feat
