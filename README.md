@@ -264,6 +264,7 @@ Claude: [calls flatten_part, export_dxf, unflatten_part]
 | `finish_sketch` | Close the sketch and return its name |
 | `extrude` | Boss-extrude a sketch (blind or mid-plane) |
 | `cut_extrude` | Cut a sketch — through all (both sides) or blind |
+| `rename_feature` | Label a feature, e.g. `St2 - Pierce holes` |
 | `delete_feature` | Remove a feature to redo a modeling step |
 
 Sketch entities are created with snapping and automatic relations turned

@@ -277,14 +277,24 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
             bridge.ensure_connected()
             doc = bridge.get_active_doc()
 
+            # Both branches go through export._save_as3: calling SaveAs3/Save3
+            # directly passes None for IDispatch params and plain ints for the
+            # by-ref Errors/Warnings, which raises "Type mismatch".
+            from solidworks_mcp.tools.export import _save_as3
+
             if output_path is None:
-                doc.Save3(1, 0, 0)
                 saved = _com_call(doc, "GetPathName")
+                if not saved:
+                    return {"success": False,
+                            "error": "The document has never been saved — "
+                                     "pass output_path for the first save."}
             else:
-                abs_out = os.path.abspath(output_path)
-                Path(abs_out).parent.mkdir(parents=True, exist_ok=True)
-                doc.Extension.SaveAs3(abs_out, 0, 1, None, None, 0, 0)
-                saved = abs_out
+                saved = os.path.abspath(output_path)
+                Path(saved).parent.mkdir(parents=True, exist_ok=True)
+            if not _save_as3(doc, saved) or not os.path.isfile(saved):
+                return {"success": False,
+                        "error": f"SolidWorks did not save '{saved}'. "
+                                 "Check SolidWorks for an error dialog."}
 
             logger.info("save_file: saved to '%s'", saved)
             return {"success": True, "saved_path": saved}

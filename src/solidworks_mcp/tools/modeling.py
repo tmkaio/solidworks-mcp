@@ -11,6 +11,7 @@ Tools in this module:
     finish_sketch       — Close the active sketch and return its name
     extrude             — Boss-extrude a sketch (blind or mid-plane)
     cut_extrude         — Cut-extrude a sketch (through all, or blind)
+    rename_feature      — Rename a feature (label process steps)
     delete_feature      — Delete a feature by name (undo a modeling step)
 
 Coordinates are millimetres in the SKETCH's own 2D frame:
@@ -99,6 +100,25 @@ def resolve_sketch(doc, sketch_name: str):
         if sk.Name == sketch_name:
             return sk
     return None
+
+
+def clean_polygon(points, tol_mm: float = 1e-4) -> list[tuple[float, float]]:
+    """
+    Drop consecutive duplicate points (and a repeated closing point).
+
+    SolidWorks refuses a zero-length line; polygons coming out of geometry
+    libraries (e.g. Shapely ring buffers) often repeat a vertex.
+    """
+    out: list[tuple[float, float]] = []
+    for p in points:
+        q = (float(p[0]), float(p[1]))
+        if out and abs(q[0] - out[-1][0]) < tol_mm and abs(q[1] - out[-1][1]) < tol_mm:
+            continue
+        out.append(q)
+    while len(out) > 1 and abs(out[0][0] - out[-1][0]) < tol_mm \
+            and abs(out[0][1] - out[-1][1]) < tol_mm:
+        out.pop()
+    return out
 
 
 def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
@@ -242,23 +262,26 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
 
         Returns a dict with: success (bool), segments (int)
         """
-        pts = [(float(p[0]), float(p[1])) for p in points]
-        if len(pts) >= 2 and pts[0] == pts[-1]:
-            pts = pts[:-1]
+        pts = clean_polygon(points)
         if len(pts) < 3:
             return {"success": False, "error": "need at least 3 distinct points"}
 
+        failed: list[int] = []
+
         def build(skm):
-            ok = True
-            for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]):
+            for i, ((ax, ay), (bx, by)) in enumerate(zip(pts, pts[1:] + pts[:1])):
                 seg = skm.CreateLine(ax * MM_TO_M, ay * MM_TO_M, 0,
                                      bx * MM_TO_M, by * MM_TO_M, 0)
-                ok = ok and seg is not None
-            return ok
+                if seg is None:
+                    failed.append(i)
+            return not failed
 
         result = _add_entities(build)
         if result.get("success"):
             result["segments"] = len(pts)
+        elif failed:
+            result["error"] = (f"SolidWorks rejected {len(failed)} of {len(pts)} "
+                               f"segments (indices {failed[:10]}).")
         return result
 
     @mcp.tool()
@@ -272,14 +295,16 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
         """
         try:
             doc, skm = _active_sketch_manager()
-            before = len(features_of_type(doc, "ProfileFeature"))
+            # the open sketch is already in the tree (as the newest sketch);
+            # remember its name and check it survives closing
+            open_sk = resolve_sketch(doc, "")
+            name = open_sk.Name if open_sk is not None else None
             skm.InsertSketch(True)
-            sketches = features_of_type(doc, "ProfileFeature")
-            if len(sketches) <= before:
+            if name is None or doc.FeatureByName(name) is None:
                 # SolidWorks silently discards a sketch with no entities
                 return {"success": True, "sketch_name": None,
                         "note": "The sketch was empty and SolidWorks discarded it."}
-            return {"success": True, "sketch_name": sketches[-1].Name}
+            return {"success": True, "sketch_name": name}
         except RuntimeError as exc:
             return {"success": False, "error": str(exc)}
         except Exception as exc:
@@ -367,6 +392,33 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
             return {"success": False, "error": str(exc)}
 
     @mcp.tool()
+    def rename_feature(feature_name: str, new_name: str) -> dict:
+        """
+        Rename a feature in the FeatureManager tree.
+
+        Use to label modeling steps meaningfully, e.g. "St2 - Pierce holes",
+        so the tree reads like the engineer's process sheet.
+
+        Returns a dict with: success (bool), name (str): the name now in the tree
+        """
+        try:
+            doc = _part()
+            new_name = new_name.strip()
+            if not new_name:
+                return {"success": False, "error": "new_name is empty"}
+            if doc.FeatureByName(new_name) is not None:
+                return {"success": False,
+                        "error": f"A feature named '{new_name}' already exists"}
+            feat = doc.FeatureByName(feature_name)
+            if feat is None:
+                return {"success": False, "error": f"Feature '{feature_name}' not found"}
+            feat.Name = new_name
+            return {"success": True, "name": feat.Name}
+        except Exception as exc:
+            logger.exception("rename_feature error")
+            return {"success": False, "error": str(exc)}
+
+    @mcp.tool()
     def delete_feature(feature_name: str) -> dict:
         """
         Delete a feature (and its absorbed sketch) from the active part.
@@ -383,8 +435,13 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
                 return {"success": False, "error": f"Feature '{feature_name}' not found"}
             doc.ClearSelection2(True)
             feat.Select2(False, 0)
-            # swDeleteSelectionOptions_e: 1 = absorbed features (e.g. the sketch)
+            # swDeleteSelectionOptions_e: 1 = also absorbed features (the
+            # sketch of a cut); a bare sketch has none, so retry plainly
             ok = doc.Extension.DeleteSelection2(1)
+            if not ok and doc.FeatureByName(feature_name) is not None:
+                doc.ClearSelection2(True)
+                feat.Select2(False, 0)
+                ok = doc.Extension.DeleteSelection2(0)
             if not ok:
                 return {"success": False, "error": "SolidWorks refused the delete"}
             return {"success": True, "deleted": feature_name}

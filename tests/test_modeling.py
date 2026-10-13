@@ -2,7 +2,12 @@
 
 import pytest
 
-from solidworks_mcp.tools.modeling import default_plane, features_of_type, resolve_sketch
+from solidworks_mcp.tools.modeling import (
+    clean_polygon,
+    default_plane,
+    features_of_type,
+    resolve_sketch,
+)
 from tests.com_doubles import FakeCom, chain, feature
 
 
@@ -57,3 +62,16 @@ def test_resolve_sketch_last_named_and_missing():
     assert resolve_sketch(doc, "Sketch1").Name == "Sketch1"
     assert resolve_sketch(doc, "Sketch9") is None
     assert resolve_sketch(FakeCom(FirstFeature=None), "") is None
+
+
+def test_clean_polygon_drops_repeated_vertices():
+    # a Shapely ring often starts with a doubled vertex — SolidWorks rejects
+    # the resulting zero-length line
+    pts = [[35.5, 96.5], [35.5, 96.5], [24.5, 96.5], [24.5, 91.5],
+           [35.5, 91.5], [35.5, 96.5]]
+    assert clean_polygon(pts) == [(35.5, 96.5), (24.5, 96.5), (24.5, 91.5), (35.5, 91.5)]
+
+
+def test_clean_polygon_keeps_genuine_short_edges():
+    pts = [[0, 0], [0.01, 0], [1, 0], [1, 1]]
+    assert len(clean_polygon(pts)) == 4
