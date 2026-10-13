@@ -252,15 +252,39 @@ Claude: [calls flatten_part, export_dxf, unflatten_part]
 | `get_component_info` | Mass, path, bbox for a named component |
 | `get_assembly_mass` | Total assembly mass and centre of mass |
 
-## Limitations (v0.1)
+### Modeling (build geometry)
+| Tool | Description |
+|---|---|
+| `new_part` | New empty part from the default part template |
+| `start_sketch` | Open a sketch on the Front / Top / Right plane |
+| `sketch_line` | Line, mm in the sketch frame |
+| `sketch_rectangle` | Corner rectangle |
+| `sketch_circle` | Circle by centre and diameter |
+| `sketch_polygon` | Closed polyline — blank outlines, notch punches, carriers |
+| `finish_sketch` | Close the sketch and return its name |
+| `extrude` | Boss-extrude a sketch (blind or mid-plane) |
+| `cut_extrude` | Cut a sketch — through all (both sides) or blind |
+| `delete_feature` | Remove a feature to redo a modeling step |
+
+Sketch entities are created with snapping and automatic relations turned
+off, so geometry lands exactly at the coordinates given. Planes are picked
+by position, not name, so localized installs work too.
+
+These are the "hands" for letting Claude *design* — e.g. lay out a
+progressive-die strip station by station, reasoning like an engineer —
+instead of only inspecting existing models.
+
+## Limitations
 
 - **Assembly support is read-only.** Components, BOM, mates and mass can be
   read; creating mates or inserting components is not supported.
-- **No parametric editing.** Features can be listed, suppressed and
-  unsuppressed, but dimensions cannot be driven.
+- **Modeling covers flat prismatic work** (sketch, extrude, cut). Sheet-metal
+  forming features (base flange, sketched bend) are not exposed yet, and
+  sketch dimensions cannot be driven parametrically after creation.
 - **STEP files import as "dumb" solids.** `convert_to_sheet_metal` must run
   before bend analysis will return anything.
-- **No strip layout / progressive die design.**
+- **No strip-layout logic in the server itself** — the modeling tools draw
+  what an agent decides; the design reasoning lives in the agent.
 - **Windows only**, and requires a licensed local SolidWorks install — the
   COM API needs the full application. The one exception is
   `analyze_step_standalone`, which runs anywhere via CadQuery.
@@ -269,8 +293,9 @@ Claude: [calls flatten_part, export_dxf, unflatten_part]
 
 | Version | Feature |
 |---|---|
-| v0.2 | Strip layout tools — station configuration |
-| v0.3 | Force calculations (cut, bend, draw) |
+| v0.2 | ✅ Modeling tools — sketch, extrude, cut, delete |
+| v0.3 | Sheet-metal forming features (base flange, sketched bend) for formed strip stations |
+| v0.4 | Force calculations (cut, bend, draw) |
 
 Beyond that: formability and undercut detection, GD&T annotation on
 generated drawings, and nesting integration are all plausible directions,

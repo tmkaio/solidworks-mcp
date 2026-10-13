@@ -15,6 +15,7 @@ Architecture:
     tools/features           ← feature tree management (suppress/unsuppress/list)
     tools/drawings           ← drawing creation and view management
     tools/assemblies         ← assembly BOM, components, mates, mass
+    tools/modeling           ← build geometry: sketches, extrude, cut
 
 Transport: STDIO (required by Claude Desktop MCP protocol).
 CRITICAL: Nothing in this file (or any import chain) may write to stdout.
@@ -52,6 +53,7 @@ from solidworks_mcp.tools import (
     features,
     file_ops,
     measurements,
+    modeling,
     properties,
     sheet_metal,
 )
@@ -79,6 +81,7 @@ measurements.register(mcp, bridge)
 features.register(mcp, bridge)
 drawings.register(mcp, bridge)
 assemblies.register(mcp, bridge)
+modeling.register(mcp, bridge)
 
 logger.info(
     "SolidWorks MCP server initialized (PID %d, Python %s)",
