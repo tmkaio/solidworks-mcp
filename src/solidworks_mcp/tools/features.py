@@ -12,7 +12,7 @@ Tools in this module:
 
 The FeatureManager tree is accessed via IModelDoc2.FirstFeature() /
 IFeature.GetNextFeature().  Each IFeature exposes:
-    Name, GetTypeName2(), IsSuppressed2(), SetSuppression2(),
+    Name, GetTypeName2(), IsSuppressed(), SetSuppression2(),
     GetDefinition(), GetDimensions2() for parametric features.
 
 Suppression constants (swFeatureSuppressionAction_e):
@@ -28,7 +28,11 @@ Configuration options (swInConfigurationOpts_e):
 import logging
 from typing import TYPE_CHECKING
 
-from solidworks_mcp.solidworks_bridge import _com_call
+from solidworks_mcp.solidworks_bridge import (
+    _com_call,
+    feature_error_code,
+    feature_is_suppressed,
+)
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -79,8 +83,8 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
                 try:
                     fname = feat.Name
                     ftype = _com_call(feat, "GetTypeName2")
-                    suppressed = bool(feat.IsSuppressed2(1, "Default"))  # swAllConfiguration
-                    has_error = _com_call(feat, "GetErrorCode2") != 0
+                    suppressed = feature_is_suppressed(feat)
+                    has_error = feature_error_code(feat) != 0
 
                     if not include_suppressed and suppressed:
                         continue
@@ -135,8 +139,8 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
                              "Use list_features to see available feature names."
                 }
 
-            suppressed = bool(feat.IsSuppressed2(1, "Default"))
-            err_code = _com_call(feat, "GetErrorCode2")
+            suppressed = feature_is_suppressed(feat)
+            err_code = feature_error_code(feat)
             err_desc = feat.GetErrorDescription(err_code) if err_code != 0 else ""
 
             return {
@@ -376,7 +380,7 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
             if feat is None:
                 return {"error": f"Feature '{feature_name}' not found"}
 
-            err_code = _com_call(feat, "GetErrorCode2")
+            err_code = feature_error_code(feat)
             err_desc = ""
             if err_code != 0:
                 try:

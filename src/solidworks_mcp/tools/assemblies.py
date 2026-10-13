@@ -22,7 +22,7 @@ IComponent2 interface key methods:
 import logging
 from typing import TYPE_CHECKING
 
-from solidworks_mcp.solidworks_bridge import _com_call
+from solidworks_mcp.solidworks_bridge import _com_call, feature_is_suppressed
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -245,7 +245,7 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
                         mates_data.append({
                             "name": feat.Name,
                             "type": ftype.replace("Mate", "", 1),
-                            "is_suppressed": bool(feat.IsSuppressed2(1, "")),
+                            "is_suppressed": feature_is_suppressed(feat),
                             "entity_count": len(entities),
                         })
                 except Exception as exc:

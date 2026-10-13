@@ -30,8 +30,10 @@ from solidworks_mcp.solidworks_bridge import (
     M3_TO_MM3,
     M_TO_MM,
     SolidWorksBridge,
+    feature_error_code,
+    feature_is_suppressed,
 )
-from tests.com_doubles import feature
+from tests.com_doubles import FakeCom, feature
 
 requires_pywin32 = pytest.mark.skipif(
     importlib.util.find_spec("pythoncom") is None,
@@ -49,7 +51,8 @@ def connected_bridge():
     """A bridge with a mocked COM app object."""
     b = SolidWorksBridge()
     mock_app = MagicMock()
-    mock_app.RevisionNumber.return_value = "30.4.0"
+    # late-bound pywin32 auto-evaluates RevisionNumber into a str
+    mock_app.RevisionNumber = "30.4.0"
     mock_app.ActiveDoc = None
     b._app = mock_app
     b._connected = True
@@ -68,6 +71,10 @@ def test_connect_raises_when_solidworks_not_running():
         patch("pythoncom.CoInitialize"),
         patch("win32com.client.GetActiveObject", side_effect=Exception("no SW")),
         patch("win32com.client.Dispatch", side_effect=Exception("cant launch")),
+        patch(
+            "solidworks_mcp.solidworks_bridge._is_solidworks_running",
+            return_value=False,
+        ),
     ):
         with pytest.raises(SolidWorksNotRunningError):
             b.connect()
@@ -77,7 +84,8 @@ def test_connect_raises_when_solidworks_not_running():
 def test_connect_reuses_existing_instance():
     b = SolidWorksBridge()
     mock_app = MagicMock()
-    mock_app.RevisionNumber.return_value = "30.4.0"
+    # late-bound pywin32 auto-evaluates RevisionNumber into a str
+    mock_app.RevisionNumber = "30.4.0"
     with (
         patch("pythoncom.CoInitialize"),
         patch("win32com.client.GetActiveObject", return_value=mock_app),
@@ -92,11 +100,16 @@ def test_connect_reuses_existing_instance():
 def test_connect_launches_new_instance_when_none_running():
     b = SolidWorksBridge()
     mock_app = MagicMock()
-    mock_app.RevisionNumber.return_value = "30.4.0"
+    # late-bound pywin32 auto-evaluates RevisionNumber into a str
+    mock_app.RevisionNumber = "30.4.0"
     with (
         patch("pythoncom.CoInitialize"),
         patch("win32com.client.GetActiveObject", side_effect=Exception("no existing")),
         patch("win32com.client.Dispatch", return_value=mock_app),
+        patch(
+            "solidworks_mcp.solidworks_bridge._is_solidworks_running",
+            return_value=False,
+        ),
     ):
         result = b.connect()
     assert result["is_new_instance"] is True
@@ -265,3 +278,61 @@ def test_unit_conversion_constants():
     assert M3_TO_MM3 == 1e9
     assert M2_TO_MM2 == 1e6
     assert KG_TO_G == 1000.0
+
+
+# ---------------------------------------------------------------------------
+# Feature state helpers
+# ---------------------------------------------------------------------------
+
+
+def test_feature_is_suppressed_uses_plain_bool():
+    # IsSuppressed2 returns a SafeArray -> (False,), which is truthy; the
+    # helper must read the no-argument IsSuppressed instead.
+    assert feature_is_suppressed(FakeCom(IsSuppressed=False)) is False
+    assert feature_is_suppressed(FakeCom(IsSuppressed=True)) is True
+
+
+def test_feature_error_code_reads_no_arg_variant():
+    assert feature_error_code(FakeCom(GetErrorCode=0)) == 0
+    assert feature_error_code(FakeCom(GetErrorCode=26)) == 26
+    assert feature_error_code(FakeCom(GetErrorCode=None)) == 0
+
+
+# ---------------------------------------------------------------------------
+# Re-attach after a stale COM reference
+# ---------------------------------------------------------------------------
+
+
+class _StaleApp:
+    @property
+    def ActiveDoc(self):
+        raise Exception("RPC_E_CALL_REJECTED")
+
+
+@requires_pywin32
+def test_is_connected_reattaches_when_reference_goes_stale():
+    b = SolidWorksBridge()
+    b._app = _StaleApp()
+    b._connected = True
+    fresh = MagicMock()
+    fresh.ActiveDoc = None
+    with (
+        patch("pythoncom.CoInitialize"),
+        patch("win32com.client.GetActiveObject", return_value=fresh),
+    ):
+        assert b.is_connected() is True
+    assert b._app is fresh
+
+
+@requires_pywin32
+def test_is_connected_false_when_reattach_fails():
+    b = SolidWorksBridge()
+    b._app = _StaleApp()
+    b._connected = True
+    with (
+        patch("pythoncom.CoInitialize"),
+        patch("win32com.client.GetActiveObject", side_effect=Exception("gone")),
+        patch("time.sleep"),
+    ):
+        assert b.is_connected() is False
+    assert b._connected is False

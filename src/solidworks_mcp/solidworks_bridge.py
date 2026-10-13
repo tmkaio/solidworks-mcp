@@ -165,15 +165,48 @@ class SolidWorksBridge:
         logger.info("Disconnected from SolidWorks COM")
 
     def is_connected(self) -> bool:
-        """Return True if an app reference is held and still responsive."""
+        """
+        Return True if an app reference is held and still responsive.
+
+        A previously working reference can go stale — e.g. SolidWorks was
+        busy behind a modal dialog (RPC_E_CALL_REJECTED) or was restarted.
+        Instead of dropping the session for good, re-attach to the running
+        instance once (never launches a new one).
+        """
         if not self._connected or self._app is None:
             return False
         try:
             _ = self._app.ActiveDoc
             return True
-        except Exception:
+        except Exception as exc:
+            logger.warning("SolidWorks COM reference stale (%s); re-attaching", exc)
+            return self._reattach()
+
+    def _reattach(self, attempts: int = 3, delay_s: float = 0.5) -> bool:
+        """Re-acquire the running SolidWorks instance via the ROT."""
+        import time
+
+        try:
+            import pythoncom
+            import win32com.client
+        except ImportError:
             self._connected = False
             return False
+
+        for i in range(attempts):
+            try:
+                pythoncom.CoInitialize()
+                app = win32com.client.GetActiveObject("SldWorks.Application")
+                _ = app.ActiveDoc
+                self._app = app
+                self._connected = True
+                logger.info("Re-attached to running SolidWorks (attempt %d)", i + 1)
+                return True
+            except Exception as exc:
+                logger.debug("Re-attach attempt %d failed: %s", i + 1, exc)
+                time.sleep(delay_s)
+        self._connected = False
+        return False
 
     def ensure_connected(self) -> None:
         """Raise SolidWorksConnectionError if not connected."""
@@ -384,7 +417,9 @@ class SolidWorksBridge:
         if self._app is None:
             return "unknown"
         try:
-            return str(self._app.RevisionNumber())
+            # RevisionNumber is a method in the typelib, but late-bound
+            # pywin32 auto-evaluates it into a str — _com_call handles both.
+            return str(_com_call(self._app, "RevisionNumber"))
         except Exception:
             return "unknown"
 
@@ -426,6 +461,28 @@ def _com_call(obj, method_name: str, *args):
             "supplied. Use the property-style value directly."
         )
     return attr
+
+
+def feature_is_suppressed(feat) -> bool:
+    """
+    True if the feature is suppressed in the active configuration.
+
+    Uses IFeature.IsSuppressed (no arguments). IsSuppressed2 returns a
+    SafeArray — a tuple like (False,) in Python, which is always truthy,
+    so bool() on it silently reported every feature as suppressed.
+    """
+    return bool(_com_call(feat, "IsSuppressed"))
+
+
+def feature_error_code(feat) -> int:
+    """
+    Rebuild error code of a feature (0 = no error).
+
+    Uses IFeature.GetErrorCode (no arguments). GetErrorCode2 has a
+    by-reference IsWarning out-parameter; calling it without one raises
+    "Parameter not optional", which made list_features skip every feature.
+    """
+    return int(_com_call(feat, "GetErrorCode") or 0)
 
 
 def _is_process_elevated() -> bool:
