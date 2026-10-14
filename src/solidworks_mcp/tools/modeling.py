@@ -142,10 +142,14 @@ def register(mcp: "FastMCP", bridge: "SolidWorksBridge") -> None:
         except RuntimeError as exc:
             return {"success": False, "error": str(exc)}
         skm.AddToDB = True
+        # redrawing after every entity makes long polylines (hundreds of
+        # segments) take minutes; one redraw at the end is enough
+        skm.DisplayWhenAdded = False
         try:
             created = build(skm)
         finally:
             skm.AddToDB = False
+            skm.DisplayWhenAdded = True
         _com_call(doc, "GraphicsRedraw2")
         if not created:
             return {"success": False,
